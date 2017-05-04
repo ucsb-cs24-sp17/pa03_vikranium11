@@ -1,0 +1,336 @@
+//poly1.cxx
+//Vikram Tharakan 5/2/17
+
+#include "poly1.h"
+#include <algorithm>
+#include <cmath>
+#include <climits>
+#include <cassert>
+
+using namespace std;
+namespace main_savitch_4
+{
+  ///////////// CONSTRUTORS ///////////////////////////
+  
+  polynomial::polynomial(double c, unsigned int exponent){
+    //If the exponent is less than the original size 30
+    if(exponent < DEFAULT_CAPACITY){
+      coef = new double[DEFAULT_CAPACITY];
+      for(int i = 0; i<(DEFAULT_CAPACITY); i++){
+      coef[i] = 0;
+      }
+      size = DEFAULT_CAPACITY;
+    }
+    else{
+      coef = new double[exponent+1];
+      for(int i = 0; i<(exponent+1); i++){
+      coef[i] = 0;
+      }
+      size = exponent+1;
+    }
+
+    //Sets the value of the coefficient if it's > 0
+    if(c > 0){
+      coef[exponent] = c;
+      current_degree = exponent;
+    }
+    else {
+      current_degree = 0;
+    }
+  }
+  
+  polynomial::polynomial(const polynomial& source){
+    size = source.size;
+    current_degree = source.current_degree;
+    coef = new double[size];
+    copy(source.coef, source.coef+size, coef);
+  }
+ 
+  //////////// DESTRUCTOR ////////////////////////////
+  polynomial::~polynomial( ){
+    delete [] coef;
+  }
+
+
+  /////////// MODIFICATION MEMBER FUNCTIONS ///////////
+  void polynomial::add_to_coef(double amount, unsigned int exponent){
+    //WRITE SOMETHING
+    //THAT MAKES IT RESIZE
+    //IF exponent > size
+    if(exponent < size){
+      coef[exponent] += amount;
+    }
+    else{
+      reserve(exponent+1);
+      coef[exponent] += amount;
+    }
+    //Solely for adding down
+    if(coef[exponent] == 0){
+      current_degree = 0;
+      for(unsigned int i = 0; i<size; i++){
+	if(coef[i] != 0)
+	  current_degree = i;
+      }
+    }
+    if(exponent > current_degree && coef[exponent] != 0)
+      current_degree = exponent;
+  }
+  
+  void polynomial::assign_coef(double coefficient, unsigned int exponent){
+    if(exponent < size){
+      coef[exponent] = coefficient;
+    }
+    else{
+      reserve(exponent+1);
+      coef[exponent] = coefficient;
+    }
+    //Solely for adding down
+    if(coef[exponent] == 0){
+      current_degree = 0;
+      for(unsigned int i = 0; i<size; i++){
+	if(coef[i] != 0)
+	  current_degree = i;
+      }
+    }
+    if(exponent > current_degree && coef[exponent] != 0)
+      current_degree = exponent;
+  }
+
+  
+  void polynomial::clear( ){
+    for(int i = 0; i < size; i++){
+      coef[i] = 0;
+    }
+    current_degree = 0;
+  }
+
+  
+  void polynomial::reserve(unsigned int number){
+    double *larger_array;
+    if(number <= size)
+      return;
+
+    larger_array = new double[number];
+    copy(coef, coef+size, larger_array);
+    delete [] coef;
+    coef = larger_array;
+    for(int i = size; i<number; i++){
+      coef[i] = 0;
+    }  
+    size = number;
+  }
+
+  polynomial& polynomial::operator =(const polynomial& source){
+    double *new_data;
+    if(this == &source)
+      return *this;
+    
+    if(size != source.size){
+      new_data = new double[source.size];
+      delete [] coef;
+      coef = new_data;
+      size = source.size;
+    }
+    current_degree = source.current_degree;
+    copy(source.coef, source.coef+size, coef);
+    return *this;
+  }
+
+  
+  //////// CONSTANT MEMBER FUNCTIONS ////////////////////
+  double polynomial::coefficient(unsigned int exponent) const{
+    if(exponent <= current_degree)
+      return coef[exponent];
+    else
+      return 0;
+  }
+
+  polynomial polynomial::derivative( ) const{
+    polynomial p1(0,size);
+    if(current_degree > 0){
+      for(int i = 0; i < (size-1); i++){
+	p1.coef[i] = coef[i+1]*(i+1);
+      }
+      p1.current_degree = current_degree - 1;
+    }
+    else{
+      p1.current_degree = 0;
+      p1.coef[0] = 0;
+    }
+    return p1;
+  }
+  
+  double polynomial::eval(double x) const{
+    double total = 0;
+    for(unsigned int i = 0; i<size; i++){
+      if(i == 0)
+	total += coef[i];
+      else
+	total += pow(x,i)*coef[i];
+    }
+    return total;  
+  }
+  
+  void polynomial::find_root(
+		 double& answer,
+		 bool& success,
+		 unsigned int& iterations,
+		 double guess,
+		 unsigned int maximum_iterations,
+		 double epsilon
+		 )
+    const{
+
+    assert(epsilon>0);
+    polynomial p = derivative();
+    answer = guess;
+    double f = eval(answer);
+    double f_prime = p.eval(answer);
+    iterations = 0;
+    while(iterations<=maximum_iterations && abs(f)>epsilon && abs(f_prime)>epsilon){
+      iterations += 1;
+      answer = answer - (f/f_prime);
+      f = eval(answer);
+      f_prime = p.eval(answer);
+    }
+    if(abs(f)<epsilon){
+      success = true;
+    }
+    else{
+      success = false;
+    }
+  }
+
+  unsigned int polynomial::next_term(unsigned int e) const{
+    for(unsigned int i = (e+1); i<size; i++){
+      if(coef[i]!=0)
+	return i;
+    }
+    return 0;
+  }
+  
+  unsigned int polynomial::previous_term(unsigned int e) const{
+    if (e == 0)
+      return UINT_MAX;
+
+    //Just in case e> is like 56 or something
+    if(e > size)
+      e = size;
+
+    for(int i = (e-1); i>=0; i--){
+      if(coef[i]!= 0)
+	return i;
+    }
+
+    return UINT_MAX;
+  }
+  
+  
+
+  //////// NON-MEMBER BINARY OPERATORS //////////////////
+  polynomial operator +(const polynomial& p1, const polynomial& p2){
+    polynomial p;
+    double holder;
+
+    if(p1.degree()<p2.degree()){
+      for(unsigned int i = 0; i<(p1.degree()+1); i++){
+	holder = p1.coefficient(i) + p2.coefficient(i);
+	p.assign_coef(holder,i);
+      }
+      for(unsigned int j = (p1.degree()+1); j<(p2.degree()+1); j++){
+	holder = p2.coefficient(j);
+	p.assign_coef(holder,j);
+      }
+    }
+    else{
+      for(unsigned int i = 0; i<(p2.degree()+1); i++){
+	holder = p1.coefficient(i) + p2.coefficient(i);
+	p.assign_coef(holder,i);
+      }
+      for(unsigned int j = (p2.degree()+1); j<(p1.degree()+1); j++){
+	holder = p1.coefficient(j);
+	p.assign_coef(holder,j);
+      }
+    }
+    
+    return p;
+  }
+  
+  polynomial operator -(const polynomial& p1, const polynomial& p2){
+    polynomial p;
+    double holder;
+
+    if(p1.degree()<p2.degree()){
+      for(unsigned int i = 0; i<(p1.degree()+1); i++){
+	holder = p1.coefficient(i) - p2.coefficient(i);
+	p.assign_coef(holder,i);
+      }
+      for(unsigned int j = (p1.degree()+1); j<(p2.degree()+1); j++){
+	holder = -p2.coefficient(j);
+	p.assign_coef(holder,j);
+      }
+    }
+    else{
+      for(unsigned int i = 0; i<(p2.degree()+1); i++){
+	holder = p1.coefficient(i) - p2.coefficient(i);
+	p.assign_coef(holder,i);
+      }
+      for(unsigned int j = (p2.degree()+1); j<(p1.degree()+1); j++){
+	holder = p1.coefficient(j);
+	p.assign_coef(holder,j);
+      }
+    }
+
+    return p;
+    
+  }
+  
+  polynomial operator *(const polynomial& p1, const polynomial& p2){
+    int limit = (p1.degree()+1)*(p2.degree()+1);
+    polynomial p(0,limit);
+    for(unsigned int i = 0; i<=p1.degree(); i++){
+      for(unsigned int j = 0; j<=p2.degree(); j++){
+	if(p1.coefficient(i) != 0 && p2.coefficient(j) != 0){
+	  double holder = p1.coefficient(i)*p2.coefficient(j);
+	  p.add_to_coef(holder,(i+j));
+	}
+      }
+    }
+    return p;
+  }
+
+  //////// NON-MEMBER OUTPUT FUNCTION ///////////////////
+  std::ostream& operator << (std::ostream& out, const polynomial& p){
+
+    if (p.degree( ) == 0 && p.coefficient(0)==0)
+      {
+	out << 0;
+	return out;
+      }
+
+    out << p.coefficient(p.degree());
+    if(p.degree()>1)
+      out << "x^" << p.degree();
+    else if(p.degree() ==1)
+      out << "x";
+    for (int i = p.degree( )-1; i >= 0; i--)
+      {
+	if ( p.coefficient( i ) < 0.0 )
+	  out << " - " << std::abs(p.coefficient( i ));
+	else if (p.coefficient(i) > 0)
+	  out << " + " << p.coefficient(i);
+
+	if(p.coefficient(i) !=0){
+	  if(i>1)
+	    out << "x^" << i;
+	  else if(i ==1)
+	    out << "x";
+	}
+      }
+    out << std::endl;
+    return out;
+   
+  }
+
+  
+}
